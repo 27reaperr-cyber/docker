@@ -408,7 +408,8 @@ async def cmd_server_status(msg: Message) -> None:
         f"    └ {ram.used // 1024**2} MB / {ram.total // 1024**2} MB\n"
         f"💿 <b>Диск</b>  {disk.percent:5.1f}%  {_bar(disk.percent)}\n"
         f"    └ {disk.used // 1024**3:.1f} GB / {disk.total // 1024**3:.1f} GB\n\n"
-        f"🐳 <b>Контейнеров:</b> {containers}"
+        f"🐳 <b>Контейнеров:</b> {containers}\n"
+        f"⚙️ <b>Режим:</b> {pm.running_mode()}"
     )
     refresh_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔃 Обновить", callback_data="refresh_server")]
@@ -435,7 +436,8 @@ async def cb_refresh_server(cq: CallbackQuery) -> None:
         f"    └ {ram.used // 1024**2} MB / {ram.total // 1024**2} MB\n"
         f"💿 <b>Диск</b>  {disk.percent:5.1f}%  {_bar(disk.percent)}\n"
         f"    └ {disk.used // 1024**3:.1f} GB / {disk.total // 1024**3:.1f} GB\n\n"
-        f"🐳 <b>Контейнеров:</b> {containers}"
+        f"🐳 <b>Контейнеров:</b> {containers}\n"
+        f"⚙️ <b>Режим:</b> {pm.running_mode()}"
     )
     refresh_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔃 Обновить", callback_data="refresh_server")]
@@ -635,6 +637,11 @@ async def fallback(msg: Message) -> None:
 async def main() -> None:
     logger.info("Инициализация БД…")
     await db.init_db()
+
+    logger.info("Проверка Docker…")
+    await pm.check_docker()
+    logger.info("Режим запуска проектов: %s", pm.running_mode())
+
     logger.info("Бот запущен (polling).")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
