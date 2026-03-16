@@ -29,9 +29,12 @@ from process_manager import (
 
 logger = logging.getLogger(__name__)
 
-# Только HTTPS GitHub/GitLab
+# GitHub/GitLab: юзернеймы могут начинаться с цифры, содержать дефисы и точки.
+# Репо: любые буквы/цифры/дефисы/точки/подчёркивания.
 ALLOWED_GIT_HOSTS = re.compile(
-    r"^https://(github\.com|gitlab\.com)/[\w.\-]+/[\w.\-]+(\.git)?/?$",
+    r"^https://(github\.com|gitlab\.com)"
+    r"/[A-Za-z0-9]([A-Za-z0-9._-]*)?"          # username
+    r"/[A-Za-z0-9][A-Za-z0-9._-]*(\.git)?/?$",  # repo
     re.IGNORECASE,
 )
 

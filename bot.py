@@ -1,15 +1,16 @@
 """
 bot.py — основной файл Telegram-бота.
 
-ИСПРАВЛЕНО и ДОБАВЛЕНО:
-- RateLimitMiddleware: защита от спама (1 запрос/сек на пользователя).
-- DEPLOY_SEMAPHORE: максимум 3 одновременных деплоя (не роняет VPS).
-- Все inline-операции редактируют сообщение в-месте (loading → result).
-- Кнопка "🔃 Обновить" в карточке проекта.
-- Статус сервера через asyncio.to_thread — не блокирует event loop.
-- TTL-кэш для статуса сервера (10 сек) — не спамим psutil.
-- Единая функция _project_card_text для консистентного текста карточки.
-- Правильная отмена FSM через /cancel и кнопку.
+ИСПРАВЛЕНИЯ v3:
+- StateFilter() явно на всех FSM-хендлерах — State-объект без обёртки
+  в некоторых версиях aiogram 3 не применяется как фильтр.
+- fallback охраняется StateFilter(default_state) — не перехватывает
+  сообщения внутри FSM-диалога.
+- Regex для URL расширен: разрешает любые символы GitHub-юзернеймов
+  (цифры в начале, точки, дефисы).
+- Кнопки меню ("🚀 Deploy проект" и др.) добавлены StateFilter(default_state),
+  чтобы не прерывать активный FSM-диалог.
+- /cancel работает в любом состоянии через StateFilter("*").
 """
 
 import asyncio
@@ -26,7 +27,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.state import State, StatesGroup, default_state
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery,
@@ -270,7 +271,7 @@ async def cmd_start(msg: Message) -> None:
 # Deploy — FSM
 # ──────────────────────────────────────────────────────────
 
-@dp.message(F.text == "🚀 Deploy проект")
+@dp.message(StateFilter(default_state), F.text == "🚀 Deploy проект")
 async def cmd_deploy(msg: Message, state: FSMContext) -> None:
     if not await _check_access(msg.from_user.id):
         return
@@ -292,7 +293,7 @@ async def cmd_deploy(msg: Message, state: FSMContext) -> None:
     )
 
 
-@dp.message(DeployStates.waiting_repo_url)
+@dp.message(StateFilter(DeployStates.waiting_repo_url))
 async def fsm_repo_url(msg: Message, state: FSMContext) -> None:
     if (msg.text or "").strip() == "/cancel":
         await state.clear()
@@ -315,7 +316,7 @@ async def fsm_repo_url(msg: Message, state: FSMContext) -> None:
     )
 
 
-@dp.message(DeployStates.waiting_env_vars)
+@dp.message(StateFilter(DeployStates.waiting_env_vars))
 async def fsm_env_vars(msg: Message, state: FSMContext) -> None:
     text = (msg.text or "").strip()
 
@@ -364,7 +365,7 @@ async def fsm_env_vars(msg: Message, state: FSMContext) -> None:
 # Мои приложения
 # ──────────────────────────────────────────────────────────
 
-@dp.message(F.text == "📦 Мои приложения")
+@dp.message(StateFilter(default_state), F.text == "📦 Мои приложения")
 async def cmd_my_apps(msg: Message) -> None:
     if not await _check_access(msg.from_user.id):
         return
@@ -387,7 +388,7 @@ async def cmd_my_apps(msg: Message) -> None:
 # Статус сервера
 # ──────────────────────────────────────────────────────────
 
-@dp.message(F.text == "📊 Статус сервера")
+@dp.message(StateFilter(default_state), F.text == "📊 Статус сервера")
 async def cmd_server_status(msg: Message) -> None:
     if not await _check_access(msg.from_user.id):
         return
@@ -447,7 +448,7 @@ async def cb_refresh_server(cq: CallbackQuery) -> None:
 # Помощь
 # ──────────────────────────────────────────────────────────
 
-@dp.message(F.text == "ℹ️ Помощь")
+@dp.message(StateFilter(default_state), F.text == "ℹ️ Помощь")
 async def cmd_help(msg: Message) -> None:
     await msg.answer(
         "ℹ️ <b>Справка</b>\n\n"
@@ -619,7 +620,7 @@ async def cmd_cancel(msg: Message, state: FSMContext) -> None:
 # Fallback
 # ──────────────────────────────────────────────────────────
 
-@dp.message()
+@dp.message(StateFilter(default_state))
 async def fallback(msg: Message) -> None:
     await msg.answer(
         "Используйте кнопки меню или /start.",
