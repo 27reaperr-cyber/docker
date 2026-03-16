@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  tg-hosting-bot:
+    build: .
+    container_name: tg_hosting_bot
+    restart: unless-stopped
+
+    # Передаём Docker-сокет для управления дочерними контейнерами
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./projects:/app/projects
+      - ./logs:/app/logs
+      - ./hosting.db:/app/hosting.db
+
+    env_file:
+      - .env
+
+    # Ограничения самого бота
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.3"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
